@@ -1,0 +1,39 @@
+name: Validate hook and updater fixes
+
+on:
+  push:
+    branches: ["validation/ngterm-hooks-updater-*"]
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Isolated Codex hooks
+        run: python scripts/test-codex-status-hook.py --self-test
+      - name: Rust toolchain
+        run: rustup toolchain install --profile minimal --component rustfmt,clippy
+      - name: Format updater
+        run: cargo fmt -p ngterm-update --check
+      - name: Lint updater
+        run: cargo clippy --locked -p ngterm-update --all-targets --all-features -- -D warnings
+      - name: Test updater
+        run: cargo test --locked -p ngterm-update --all-features
